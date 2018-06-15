@@ -1,1 +1,27 @@
-Page to list ministers for given department will go here.
+<html>
+
+<head>
+</head>
+
+<body>
+<h1>Ministers of {{ dept.name }} </h1>
+<a href ='{{ url_for('newMinister', dept_id=dept.id) }}'>Add new minister</a> | 
+<a href ='{{ url_for('showDepartments') }}'>Back to departments</a>
+
+{% if ministers %}
+     {% for m in ministers %}
+<p>
+
+    {{ m.name }}, of {{ m.const }} <br>
+    <a href ='{{ url_for('editMinister', dept_id=m.dept_id, minst_id = m.id) }}'>Edit</a> | 
+    <a href ='{{ url_for('deleteMinister', dept_id=m.dept_id, minst_id=m.id) }}'>Delete</a> | 
+
+</p>
+    {% endfor %}
+{% else %}
+    <p>No departments in database.</p>
+{% endif %}
+
+</body>
+
+</html>

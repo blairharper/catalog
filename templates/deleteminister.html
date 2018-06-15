@@ -1,1 +1,21 @@
-Page to delete minister will go here.
+<html>
+
+<head>
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+
+<h1>Are you sure you want to delete {{minst.name}}?</h1>
+
+<form action="{{ url_for('deleteMinister', dept_id = minst.dept_id, minst_id = minst.id) }}" method='post'>
+
+<input type='submit' value='Delete'>
+</form>
+
+<a href = '{{url_for('showMinisters', dept_id=minst.dept_id)}}'>
+    <button><span></span> Cancel</button></a>
+
+</body>
+
+</html>

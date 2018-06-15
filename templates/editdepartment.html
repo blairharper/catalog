@@ -1,1 +1,25 @@
-Page to edit department will go here.
+<html>
+
+<head>
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+
+<h1>Rename: {{dept.name}}</h1>
+
+<form action="{{ url_for('editDepartment', dept_id=dept.id) }}" method='post'>
+
+<p>Enter new name:</p>
+    <input type='text' size='100' name='name' value='{{dept.name}}'>
+
+<input type='submit' value='Save'>
+</form>
+
+<a href = '{{url_for('showDepartments')}}'>
+    <button><span></span>Cancel</button></a>
+
+
+
+</body>
+</html>

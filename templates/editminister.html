@@ -1,1 +1,28 @@
-Page to edit minister will go here.
+<html>
+
+<head>
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+
+<h1>Rename: {{minst.name}}</h1>
+
+<form action="{{ url_for('editMinister', dept_id=minst.dept_id, minst_id=minst.id) }}" method='post'>
+
+<p>Name:</p>
+    <input type='text' size='100' name='name' value='{{minst.name}}'>
+
+<p>Constituency:</p>
+    <input type='text' size='100' name='const' value='{{minst.const}}'>
+
+<input type='submit' value='Save'>
+</form>
+<a href = '{{url_for('showMinisters', dept_id=minst.dept_id)}}'>
+    <button><span></span> Cancel</button></a>
+
+
+
+
+</body>
+</html>

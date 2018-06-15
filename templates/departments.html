@@ -1,1 +1,25 @@
-Page listing all departments will go here.
+<html>
+
+<head>
+</head>
+
+<body>
+<h1> Government Departments: </h1>  
+<a href ='{{ url_for('newDepartment') }}'>Add new department</a> 
+{% if departments %}
+     {% for d in departments %}
+<p>
+
+    {{ d.name }} <br>
+    <a href ='{{ url_for('showMinisters', dept_id=d.id) }}'>Ministers</a> | 
+    <a href ='{{ url_for('editDepartment', dept_id=d.id) }}'>Edit</a> | 
+    <a href ='{{ url_for('deleteDepartment', dept_id=d.id) }}'>Delete</a> | 
+
+</p>
+    {% endfor %}
+{% else %}
+    <p>No departments in database.</p>
+{% endif %}
+</body>
+
+</html>
