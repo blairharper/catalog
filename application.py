@@ -199,7 +199,6 @@ def showDepartments():
     credentials = login_session.get('credentials')
     if credentials is None:
         logged_in = 'False'
-        print "TEST"
         state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                         for x in xrange(32))
         login_session['state'] = state
@@ -217,7 +216,6 @@ def showDepartments():
         delete_auth = 'False'
     departments = session.query(Department).order_by(asc(Department.name))
     ministers = session.query(Minister).order_by(desc(Minister.id)).limit(5)
-    print login_session['state']
     return render_template('departments.html', departments=departments,
                            ministers=ministers,
                            add_auth=add_auth,
