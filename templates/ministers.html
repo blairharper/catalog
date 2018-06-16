@@ -5,7 +5,22 @@
 
 <body>
 <h1>Ministers of {{ dept.name }} </h1>
+<div class = 'flash'>
+              {% with messages = get_flashed_messages() %}
+      {% if messages %}
+          
+        <ul>
+        {% for message in messages %}
+            <li> <strong> {{ message }} </strong> </li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+    {% endwith %}
+
+</div>
+{% if add_auth == 'True' %}
 <a href ='{{ url_for('newMinister', dept_id=dept.id) }}'>Add new minister</a> | 
+{% endif %}
 <a href ='{{ url_for('showDepartments') }}'>Back to departments</a>
 
 {% if ministers %}
@@ -13,13 +28,17 @@
 <p>
 
     {{ m.name }}, of {{ m.const }} <br>
-    <a href ='{{ url_for('editMinister', dept_id=m.dept_id, minst_id = m.id) }}'>Edit</a> | 
-    <a href ='{{ url_for('deleteMinister', dept_id=m.dept_id, minst_id=m.id) }}'>Delete</a> | 
+    {% if edit_auth == 'True' %} 
+    <a href ='{{ url_for('editMinister', dept_id=m.dept_id, minst_id = m.id) }}'>Edit</a>
+    {% endif %}     
+    {% if delete_auth == 'True' %} 
+    | <a href ='{{ url_for('deleteMinister', dept_id=m.dept_id, minst_id=m.id) }}'>Delete</a>
+    {% endif %} 
 
 </p>
     {% endfor %}
 {% else %}
-    <p>No departments in database.</p>
+    <p>No ministers in database for this department.</p>
 {% endif %}
 
 </body>

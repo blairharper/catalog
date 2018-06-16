@@ -26,6 +26,14 @@ class Department(Base):
     user_id = Column(Integer, ForeignKey('user.id'))
     user = relationship(User)
 
+    @property
+    def serialise(self):
+        # Return object data in serialisable format
+        return {
+            'name': self.name,
+            'id': self.id,
+        }
+
 
 # Database table structure for storing minister info
 class Minister(Base):
@@ -36,6 +44,16 @@ class Minister(Base):
     const = Column(String(250), nullable=False)
     dept_id = Column(Integer, ForeignKey('department.id'))
     department = relationship(Department)
+
+    @property
+    def serialise(self):
+        # Return object data in serialisable format
+        return {
+            'name': self.name,
+            'constituency': self.const,
+            'id': self.id,
+            'dept_id': self.dept_id
+        }
 
 
 # Set engine as sqlite and define db file name
