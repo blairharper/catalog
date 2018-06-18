@@ -37,6 +37,7 @@ def departmentsJSON():
 
 
 # End point for all ministers
+@app.route('/ministers/JSON/')
 def ministersJSON():
     ministers = session.query(Minister).all()
     return jsonify(Ministers=[m.serialise for m in ministers])
@@ -50,7 +51,7 @@ def deptMinistersJSON(dept_id):
 
 
 # End point for a single given department
-@app.route('/department/JSON/')
+@app.route('/department/<int:dept_id>/JSON/')
 def departmentJSON(dept_id):
     department = session.query(Department).one()
     return jsonify(Department=department.serialise)
@@ -147,11 +148,6 @@ def gconnect():
     # Store our user id from db in current session
     login_session['user_id'] = getUserID(login_session['email'])
 
-    # Use isAuthorised helper method to check if user is admin
-    if isAdmin(login_session['user_id']) == 'True':
-        login_session['admin'] = 1
-    else:
-        login_session['admin'] = 0
     # Flash login message and return success response
     # (View function must return a response)
     response = 'Success'
@@ -196,24 +192,24 @@ def logout():
 @app.route('/departments/')
 def showDepartments():
     # Check if user is logged in so template renders correct login/logout links
+    # the *_auth variables tell the page which CRUD functions to enable links
+    # for. Could be merged into single auth variable or just use logged_in
+    # but kept separate to allow greater flexibility. Same for showMinisters.
     credentials = login_session.get('credentials')
     if credentials is None:
         logged_in = 'False'
         state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                         for x in xrange(32))
         login_session['state'] = state
-    else:
-        logged_in = 'True'
-    # Obtain permissions so template knows what links to provide user
-    try:
-        add_auth = isAuthorised('ADD')
-        edit_auth = isAuthorised('EDIT')
-        delete_auth = isAuthorised('DEL')
-    # Throw exception if user not logged in and set all permissions to false
-    except KeyError:
+        logged_in = 'False'
         add_auth = 'False'
         edit_auth = 'False'
         delete_auth = 'False'
+    else:
+        logged_in = 'True'
+        add_auth = 'True'
+        edit_auth = 'True'
+        delete_auth = 'True'
     departments = session.query(Department).order_by(asc(Department.name))
     ministers = session.query(Minister).order_by(desc(Minister.id)).limit(5)
     return render_template('departments.html', departments=departments,
@@ -228,148 +224,149 @@ def showDepartments():
 # Route to create new department page, also handles post method to save to db
 @app.route('/department/new/', methods=['GET', 'POST'])
 def newDepartment():
-    # Check user is authorised to create new departments using helper method.
-    try:
-        auth = isAuthorised('ADD')
-        # If post request then process request to create db entry
-        if request.method == 'POST':
-            newDepartment = Department(name=request.form['name'],
-                                       user_id=login_session['user_id'])
-            session.add(newDepartment)
-            session.commit()
-            return redirect(url_for('showDepartments'))
-        if auth == 'True':
-            return render_template('newdepartment.html')
-        else:
-            flash("You are not authorised to perform this action.")
-            return redirect(url_for('showDepartments'))
-    # Throw exception if user is not logged in.
-    except KeyError:
-        flash("You are not authorised to perform this action.")
+    if request.method == 'POST':
+        newDepartment = Department(name=request.form['name'],
+                                   user_id=login_session['user_id'])
+        session.add(newDepartment)
+        session.commit()
         return redirect(url_for('showDepartments'))
+    # Check user is logged in, only logged in users can create items
+    if 'username' not in login_session:
+        flash("You are not authorised to perform this action. "
+              "Please login.")
+        return redirect(url_for('showLogin'))
+    else:
+        return render_template('newdepartment.html')
+    # If post request then process request to create db entry
 
 
 # Route to edit a department
 @app.route('/department/<int:dept_id>/edit/', methods=['GET', 'POST'])
 def editDepartment(dept_id):
-    # Check user is authorised to editdepartments using helper method.
-    try:
-        auth = isAuthorised('EDIT')
+    # If post request then process request to amend db entry
+    if request.method == 'POST':
         dept = session.query(Department).filter_by(id=dept_id).one()
-        # If post request then process request to amend db entry
-        if request.method == 'POST':
-            dept.name = request.form['name']
-            session.commit()
-            return redirect(url_for('showDepartments'))
-        if auth == 'True':
-            return render_template('editdepartment.html', dept=dept)
-        else:
-            flash("You are not authorised to perform this action.")
-            return redirect(url_for('showDepartments'))
-    # Throw exception if user is not logged in.
-    except KeyError:
-        flash("You are not authorised to perform this action.")
+        dept.name = request.form['name']
+        session.commit()
+        return redirect(url_for('showDepartments'))
+    # Check user is logged in, only logged in users can edit items
+    if 'username' not in login_session:
+        flash("You are not authorised to perform this action. "
+              "Please login.")
+        return redirect(url_for('showLogin'))
+    # Check user is authorised to edit this dept using helper method.
+    auth = isAuthorised(login_session['user_id'], dept_id, 'Department')
+    if auth == 'True':
+        dept = session.query(Department).filter_by(id=dept_id).one()
+        return render_template('editdepartment.html', dept=dept)
+    else:
+        flash("Error: You may only edit departments you created.")
         return redirect(url_for('showDepartments'))
 
 
 # Route to delete a department
 @app.route('/department/<int:dept_id>/delete/', methods=['GET', 'POST'])
 def deleteDepartment(dept_id):
-    # Check user is authorised to delete epartments using helper method.
-    try:
-        auth = isAuthorised('DEL')
+    # Process any post requests.
+    if request.method == 'POST':
         dept = session.query(Department).filter_by(id=dept_id).one()
-        ministers = session.query(Minister).filter_by(dept_id=dept_id).all()
-        # If post request then process request to amend db entry
-        if request.method == 'POST':
-            session.delete(dept)
+        minst = session.query(Minister).filter_by(dept_id=dept_id).all()
+        session.delete(dept)
+        session.commit()
+    # Also need to delete any ministers associated with dept
+        for m in minst:
+            session.delete(m)
             session.commit()
-            # Also need to delete any ministers associated with dept
-            for m in ministers:
-                session.delete(m)
-                session.commit()
-            return redirect(url_for('showDepartments'))
-        if auth == 'True':
-            return render_template('deletedepartment.html', dept=dept)
-        else:
-            flash("You are not authorised to perform this action.")
-            return redirect(url_for('showDepartments'))
-    # Throw exception if user is not logged in.
-    except KeyError:
-        flash("You are not authorised to perform this action.")
+        return redirect(url_for('showDepartments'))
+    # Check user is logged in, only logged in users can edit items
+    if 'username' not in login_session:
+        flash("You are not authorised to perform this action. "
+              "Please login.")
+        return redirect(url_for('showLogin'))
+    # Check user is authorised to delete this dept using helper method.
+    auth = isAuthorised(login_session['user_id'], dept_id, 'Department')
+    if auth == 'True':
+        dept = session.query(Department).filter_by(id=dept_id).one()
+        return render_template('deletedepartment.html', dept=dept)
+    else:
+        flash("Error: you may only delete departments you created.")
         return redirect(url_for('showDepartments'))
 
 
 # Route to show ministers of given department
 @app.route('/department/<int:dept_id>/ministers/')
 def showMinisters(dept_id):
-    # Check permissions so template knows what links to render
-    try:
-        add_auth = isAuthorised('ADD')
-        edit_auth = isAuthorised('EDIT')
-        delete_auth = isAuthorised('DEL')
-    # Throw exception if user not logged in and set all permissions to false
-    except KeyError:
+    # Check if user is logged in so template renders correct login/logout links
+    credentials = login_session.get('credentials')
+    if credentials is None:
+        state = ''.join(random.choice(string.ascii_uppercase + string.digits)
+                        for x in xrange(32))
+        login_session['state'] = state
         add_auth = 'False'
         edit_auth = 'False'
         delete_auth = 'False'
-    ministers = session.query(Minister).filter_by(dept_id=dept_id).all()
-    dept = session.query(Department).filter_by(id=dept_id).one()
-    return render_template('ministers.html', dept=dept,
-                           ministers=ministers,
-                           add_auth=add_auth,
-                           edit_auth=edit_auth,
-                           delete_auth=delete_auth)
+    else:
+        add_auth = 'True'
+        edit_auth = 'True'
+        delete_auth = 'True'
+    try:
+        ministers = session.query(Minister).filter_by(dept_id=dept_id).all()
+        dept = session.query(Department).filter_by(id=dept_id).one()
+        return render_template('ministers.html', dept=dept,
+                               ministers=ministers,
+                               add_auth=add_auth,
+                               edit_auth=edit_auth,
+                               delete_auth=delete_auth)
+    except NoResultFound:
+        flash("Given department ID is not associated with any departments.")
+        return redirect('/')
 
 
 # Route to create new minister
 @app.route('/department/<int:dept_id>/minister/new/', methods=['GET', 'POST'])
 def newMinister(dept_id):
-    # Check user is authorised to add ministers using helper method.
-    try:
-        auth = isAuthorised('ADD')
-        # Process POST request and create DB entry
-        if request.method == 'POST':
-            newMinister = Minister(name=request.form['name'],
-                                   const=request.form['const'],
-                                   dept_id=dept_id)
-            session.add(newMinister)
-            session.commit()
-            return redirect(url_for('showMinisters', dept_id=dept_id))
-        if auth == 'True':
-            return render_template('newminister.html', dept_id=dept_id)
-        else:
-            flash("You are not authorised to perform this action.")
-            return redirect(url_for('showMinisters', dept_id=dept_id))
-    # Throw exception if user is not logged in.
-    except KeyError:
-        flash("You are not authorised to perform this action.")
+    # Process POST request and create DB entry
+    if request.method == 'POST':
+        newMinister = Minister(name=request.form['name'],
+                               const=request.form['const'],
+                               dept_id=dept_id,
+                               user_id=login_session['user_id'])
+        session.add(newMinister)
+        session.commit()
         return redirect(url_for('showMinisters', dept_id=dept_id))
+    # Check user is logged in before redirecting to new minister page
+    if 'username' not in login_session:
+        flash("You are not authorised to perform this action. "
+              "Please login.")
+        return redirect(url_for('showLogin'))
+    else:
+        return render_template('newminister.html', dept_id=dept_id)
 
 
 # Route to edit minister details
 @app.route('/department/<int:dept_id>/minister/<int:minst_id>/edit/',
            methods=['GET', 'POST'])
 def editMinister(dept_id, minst_id):
-    # Check user is authorised to edit ministers using helper method.
-    try:
-        auth = isAuthorised('EDIT')
+    # Process POST request and amend db entry
+    if request.method == 'POST':
         minst = session.query(Minister).filter_by(id=minst_id).one()
-        # Process POST request and amend db entry
-        if request.method == 'POST':
-            minst.name = request.form['name']
-            minst.const = request.form['const']
-            session.commit()
-            return redirect(url_for('showMinisters', dept_id=dept_id))
-        if auth == 'True':
-            return render_template('editminister.html', dept_id=dept_id,
-                                   minst=minst)
-        else:
-            flash("You are not authorised to perform this action.")
-            return redirect(url_for('showMinisters', dept_id=dept_id))
-    # Throw exception if user is not logged in.
-    except KeyError:
-        flash("You are not authorised to perform this action.")
+        minst.name = request.form['name']
+        minst.const = request.form['const']
+        session.commit()
+        return redirect(url_for('showMinisters', dept_id=dept_id))
+    # Check user is logged in before proceeding
+    if 'username' not in login_session:
+        flash("You are not authorised to perform this action. "
+              "Please login.")
+        return redirect(url_for('showLogin'))
+    # Check user is authorised to edit minister using helper method.
+    auth = isAuthorised(login_session['user_id'], minst_id, 'Minister')
+    if auth == 'True':
+        minst = session.query(Minister).filter_by(id=minst_id).one()
+        return render_template('editminister.html', dept_id=dept_id,
+                               minst=minst)
+    else:
+        flash("Error: you may only edit ministers you created.")
         return redirect(url_for('showMinisters', dept_id=dept_id))
 
 
@@ -377,24 +374,25 @@ def editMinister(dept_id, minst_id):
 @app.route('/department/<int:dept_id>/minister/<int:minst_id>/delete/',
            methods=['GET', 'POST'])
 def deleteMinister(dept_id, minst_id):
-    # Check user is authorised to delete ministers using helper method.
-    try:
-        auth = isAuthorised('DEL')
+    # Process any POST requests and delete db entry
+    if request.method == 'POST':
         minst = session.query(Minister).filter_by(id=minst_id).one()
-        # Process POST request and delete db entry
-        if request.method == 'POST':
-            session.delete(minst)
-            session.commit()
-            return redirect(url_for('showMinisters', dept_id=dept_id))
-        if auth == 'True':
-            return render_template('deleteminister.html', dept_id=dept_id,
-                                   minst=minst)
-        else:
-            flash("You are not authorised to perform this action.")
-            return redirect(url_for('showMinisters', dept_id=dept_id))
-    # Throw exception if user is not logged in.
-    except KeyError:
-        flash("You are not authorised to perform this action.")
+        session.delete(minst)
+        session.commit()
+        return redirect(url_for('showMinisters', dept_id=dept_id))
+    # Check user is logged in, only logged in users can edit items
+    if 'username' not in login_session:
+        flash("You are not authorised to perform this action. "
+              "Please login.")
+        return redirect(url_for('showLogin'))
+    # Check user is authorised to delete this minister using helper method.
+    auth = isAuthorised(login_session['user_id'], minst_id, 'Minister')
+    if auth == 'True':
+        minst = session.query(Minister).filter_by(id=minst_id).one()
+        return render_template('deleteminister.html', dept_id=dept_id,
+                               minst=minst)
+    else:
+        flash("Error: you may only delete minsters that you created.")
         return redirect(url_for('showMinisters', dept_id=dept_id))
 
 
@@ -406,13 +404,6 @@ def createUser(login_session):
     session.add(newUser)
     session.commit()
     user = session.query(User).filter_by(email=login_session['email']).one()
-    # Grant first user created admin privelages (only admin can delete items)
-    # THIS IS A TEMPORARY WORKAROUND IN ABSENCE OF AN ADMIN PORTAL
-    # CREATION OF PROPER ADMIN PORTAL OUTWITH SCOPE OF THIS PROJECT
-    if user.id == 1:
-        user.admin = 1
-        session.commit()
-        login_session['admin'] = 1
     return user.id
 
 
@@ -434,35 +425,24 @@ def getUserID(email):
         return None
 
 
-# Helper method to check if user has admin privelages
-def isAdmin(user_id):
+# Helper method to check if user created an item
+# and therefore if they have permission to edit that item
+def isAuthorised(user_id, data_id, data_type):
     try:
-        user = getUserInfo(user_id)
-        if user.admin == 1:
+        if data_type == 'Department':
+            data = session.query(Department).filter_by(id=data_id).one()
+        else:
+            data = session.query(Minister).filter_by(id=data_id).one()
+        data_owner = data.user_id
+        if user_id == data_owner:
             return 'True'
         else:
             return 'False'
     except NoResultFound:
+        flash("Something went wrong. Please contact us if problem persists.")
         return 'False'
 
 
-# Function to check user has appropriate authority to carry out actions
-# Helper method means permission levels can be changed quickly
-# without having to rewrite other functions.
-def isAuthorised(req_type):
-    try:
-        if req_type == "DEL" and login_session['admin'] == 1:
-            return 'True'
-        if req_type == 'ADD' and login_session['admin'] == 1:
-            return 'True'
-        if req_type == 'EDIT' and login_session['admin'] == 1:
-            return 'True'
-        else:
-            return 'False'
-        if req_type != 'DEL' or req_type != 'ADD' or req_type != 'EDIT':
-            return 'Invalid request.'
-    except AttributeError:
-        return 'False'
 # ////// End of Helper methods //////
 
 

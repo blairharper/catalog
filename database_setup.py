@@ -14,7 +14,6 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String(250), nullable=False)
     name = Column(String(250), nullable=False)
-    admin = Column(Integer)
 
 
 # Database table structure for storing dept info
@@ -44,6 +43,8 @@ class Minister(Base):
     const = Column(String(250), nullable=False)
     dept_id = Column(Integer, ForeignKey('department.id'))
     department = relationship(Department)
+    user_id = Column(Integer, ForeignKey('user.id'))
+    user = relationship(User)
 
     @property
     def serialise(self):
