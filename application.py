@@ -175,14 +175,15 @@ def logout():
         del login_session['email']
         del login_session['picture']
         del login_session['user_id']
-        del login_session['admin']
+
     # Send response
         flash("Logged out successfully")
         return redirect(url_for('showDepartments'))
     else:
         response = make_response(json.dumps("Something went wrong."), 401)
         response.headers['Content-type'] = 'application/json'
-        flash("Something went wrong, please contact us if problem persists.")
+        flash("Something went wrong, please contact us if problem persists."
+              " Error: %s" % result['status'])
         return redirect(url_for('showDepartments'))
 
 
