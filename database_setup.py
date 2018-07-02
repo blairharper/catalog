@@ -3,12 +3,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
 
-
 Base = declarative_base()
 
 
-# Database table structure for storing user info
 class User(Base):
+    """ Database table structure for storing user info """
     __tablename__ = 'user'
 
     id = Column(Integer, primary_key=True)
@@ -16,8 +15,8 @@ class User(Base):
     name = Column(String(250), nullable=False)
 
 
-# Database table structure for storing dept info
 class Department(Base):
+    """  Database table structure for storing dept info """
     __tablename__ = 'department'
 
     id = Column(Integer, primary_key=True)
@@ -27,15 +26,15 @@ class Department(Base):
 
     @property
     def serialise(self):
-        # Return object data in serialisable format
+        """ Return object data in serialisable format """
         return {
             'name': self.name,
             'id': self.id,
         }
 
 
-# Database table structure for storing minister info
 class Minister(Base):
+    """  Database table structure for storing minister info """
     __tablename__ = 'minister'
 
     id = Column(Integer, primary_key=True)
@@ -57,8 +56,8 @@ class Minister(Base):
         }
 
 
-# Set engine as sqlite and define db file name
-engine = create_engine('sqlite:///govdeptministers.db')
+# Set engine as postgresql and define db file name
+engine = create_engine('postgresql://ukgovcat:PASSWORD@localhost/ukgovcat')
 
 # Create db
 Base.metadata.create_all(engine)
