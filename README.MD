@@ -20,6 +20,7 @@ https://www.sqlite.org/index.html
 
 Create a fork of the repository or manually save local copies of the code available at:
 
+https://github.com/blairly/catalog
 
 To create a fork using Github:
 
